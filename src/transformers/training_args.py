@@ -2120,6 +2120,7 @@ class TrainingArguments:
         """
         Serializes this instance to a JSON string.
         """
+        return ''
         return json.dumps(self.to_dict(), indent=2)
 
     def to_sanitized_dict(self) -> Dict[str, Any]:
