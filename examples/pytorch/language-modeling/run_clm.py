@@ -600,6 +600,13 @@ def main():
         else None,
     )
 
+    class ProfCallback(transformers.TrainerCallback):
+        def __init__(self, prof):
+            self.prof = prof
+
+        def on_step_end(self, args, state, control, **kwargs):
+            self.prof.step()
+
     # Training
     if training_args.do_train:
         checkpoint = None
@@ -607,7 +614,16 @@ def main():
             checkpoint = training_args.resume_from_checkpoint
         elif last_checkpoint is not None:
             checkpoint = last_checkpoint
-        train_result = trainer.train(resume_from_checkpoint=checkpoint)
+        # with torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU,
+        #                                         torch.profiler.ProfilerActivity.CUDA],
+        #                     schedule=torch.profiler.schedule(skip_first=3, wait=2, warmup=2, active=6, repeat=2),
+        #                     on_trace_ready=torch.profiler.tensorboard_trace_handler('profile_xla'),
+        #                     profile_memory=False,
+        #                     with_stack=False,
+        #                     record_shapes=False) as prof:
+        #     trainer.add_callback(ProfCallback(prof=prof))
+        if True:
+            train_result = trainer.train(resume_from_checkpoint=checkpoint)
         trainer.save_model()  # Saves the tokenizer too for easy upload
 
         metrics = train_result.metrics
