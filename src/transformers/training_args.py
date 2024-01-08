@@ -49,7 +49,7 @@ from .utils import (
     is_torch_neuroncore_available,
     is_torch_npu_available,
     is_torch_tf32_available,
-    is_torch_tpu_available,
+    is_torch_xla_available,
     is_torch_xpu_available,
     logging,
     requires_backends,
@@ -70,7 +70,7 @@ if is_accelerate_available():
     from accelerate.state import AcceleratorState, PartialState
     from accelerate.utils import DistributedType
 
-if is_torch_tpu_available(check_device=False):
+if is_torch_xla_available():
     import torch_xla.core.xla_model as xm
 
 if is_torch_neuroncore_available(check_device=False):
@@ -126,7 +126,7 @@ def get_xla_device_type(device: "torch.device") -> Optional[str]:
     """
     Returns the xla device type (CPU|GPU|TPU) or None if the device is a non-xla device.
     """
-    if is_torch_tpu_available():
+    if is_torch_xla_available():
         return xm.xla_real_devices([device])[0].split(":")[0]
     return None
 
@@ -1430,7 +1430,7 @@ class TrainingArguments:
                 self.half_precision_backend = self.fp16_backend
 
             if self.bf16 or self.bf16_full_eval:
-                if self.use_cpu and not is_torch_bf16_cpu_available() and not is_torch_tpu_available():
+                if self.use_cpu and not is_torch_bf16_cpu_available() and not is_torch_xla_available():
                     # cpu
                     raise ValueError("Your setup doesn't support bf16/(cpu, tpu, neuroncore). You need torch>=1.10")
                 elif not self.use_cpu:
@@ -1882,7 +1882,7 @@ class TrainingArguments:
                 "torch.distributed process group is initialized, but parallel_mode != ParallelMode.DISTRIBUTED. "
                 "In order to use Torch DDP, launch your script with `python -m torch.distributed.launch"
             )
-        if is_torch_tpu_available():
+        if is_torch_xla_available():
             device = self.distributed_state.device
             self._n_gpu = 0
         elif is_sagemaker_dp_enabled() or is_sagemaker_mp_enabled():
@@ -1969,7 +1969,7 @@ class TrainingArguments:
         - `ParallelMode.TPU`: several TPU cores.
         """
         requires_backends(self, ["torch"])
-        if is_torch_tpu_available():
+        if is_torch_xla_available():
             return ParallelMode.TPU
         elif is_sagemaker_mp_enabled():
             return ParallelMode.SAGEMAKER_MODEL_PARALLEL
@@ -2120,7 +2120,7 @@ class TrainingArguments:
                     # tell all replicas to wait
                     logger.debug(f"{self.process_index}: waiting for the {main_process_desc} to perform {desc}")
 
-                    if is_torch_tpu_available():
+                    if is_torch_xla_available():
                         xm.rendezvous(desc)
                     else:
                         dist.barrier()
@@ -2129,7 +2129,7 @@ class TrainingArguments:
                 if is_main_process:
                     # the wait is over
                     logger.debug(f"{self.process_index}: {main_process_desc} completed {desc}, releasing all replicas")
-                    if is_torch_tpu_available():
+                    if is_torch_xla_available():
                         xm.rendezvous(desc)
                     else:
                         dist.barrier()
